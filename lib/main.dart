@@ -23,7 +23,7 @@ class MyApp extends StatefulWidget {
 class _MyAppState extends State<MyApp> {
   int selectedIndex = 0;
 
-  String server = "http://192.168.100.202/booknest/";
+  String server = "https://darkgray-crab-751713.hostingersite.com/booknest/";
 
   List<dynamic> stories = [];
 
@@ -872,6 +872,8 @@ class _StoryEditorScreenState
       final uri =
           "${widget.server}${isEdit ? 'updateStory.php' : 'addStory.php'}";
 
+      debugPrint("SINUSUBUKANG KUMONEKTA SA: $uri");
+
       var request =
       http.MultipartRequest(
         'POST',
@@ -901,17 +903,23 @@ class _StoryEditorScreenState
       var streamedResponse =
       await request.send();
 
-      if (streamedResponse.statusCode ==
-          200 &&
+      var response = await http.Response.fromStream(streamedResponse);
+
+      debugPrint("SERVER STATUS CODE: ${response.statusCode}");
+      debugPrint("SERVER RESPONSE BODY: ${response.body}");
+
+      if (response.statusCode == 200 &&
           mounted) {
         Navigator.pop(
           context,
           true,
         );
+      } else {
+        debugPrint("Hindi 200 ang status code!");
       }
     } catch (e) {
       debugPrint(
-        "Error saving story: $e",
+        "MAY ERROR SA CATCH: $e",
       );
     }
   }
@@ -926,7 +934,10 @@ class _StoryEditorScreenState
           widget.storyId == null
               ? "Add New Story"
               : "Edit Story",
-          style: const TextStyle(color: Color(0xFFFFFDD0)),
+          style: const TextStyle(
+            color: Color(0xFF5A3D28), // Coffee color na para visible at kita
+            fontWeight: FontWeight.bold,
+          ),
         ),
 
         leading: CupertinoButton(
@@ -939,7 +950,7 @@ class _StoryEditorScreenState
             CupertinoIcons.chevron_left,
             size: 26,
             color:
-            Color(0xFFFFFDD0),
+            Color(0xFF5A3D28),
           ),
         ),
 
@@ -952,9 +963,10 @@ class _StoryEditorScreenState
             "Save",
 
             style: TextStyle(
+              fontSize: 16,
               fontWeight:
               FontWeight.bold,
-              color: Color(0xFFFFFDD0),
+              color: Color(0xFF5A3D28), // Coffee color na rin ang Save button
             ),
           ),
         ),
@@ -977,7 +989,10 @@ class _StoryEditorScreenState
                 placeholder:
                 "Book Title",
 
-                placeholderStyle: const TextStyle(color: Color(0xFF8A6B47)),
+                placeholderStyle: const TextStyle(
+                  color: Color(0xFF5A3D28),
+                  fontWeight: FontWeight.w500,
+                ),
 
                 padding:
                 const EdgeInsets.all(16),
@@ -1057,7 +1072,7 @@ class _StoryEditorScreenState
                         CupertinoIcons.photo,
                         size: 32,
                         color:
-                        Color(0xFF8A6B47),
+                        Color(0xFF5A3D28),
                       ),
 
                       SizedBox(
@@ -1070,8 +1085,9 @@ class _StoryEditorScreenState
                         style:
                         TextStyle(
                           color:
-                          Color(0xFF8A6B47),
+                          Color(0xFF5A3D28),
                           fontSize: 13,
+                          fontWeight: FontWeight.w600,
                         ),
                       ),
                     ],
@@ -1091,7 +1107,10 @@ class _StoryEditorScreenState
                   placeholder:
                   "Write your story here...",
 
-                  placeholderStyle: const TextStyle(color: Color(0xFF8A6B47)),
+                  placeholderStyle: const TextStyle(
+                    color: Color(0xFF5A3D28),
+                    fontWeight: FontWeight.w500,
+                  ),
 
                   padding:
                   const EdgeInsets.all(16),
