@@ -26,6 +26,7 @@ class _MyAppState extends State<MyApp> {
   String server = "https://darkgray-crab-751713.hostingersite.com/booknest/";
 
   List<dynamic> stories = [];
+  List<dynamic> filteredStories = [];
 
   bool isSearchactive = false;
   bool isexPanded = false;
@@ -40,13 +41,28 @@ class _MyAppState extends State<MyApp> {
       final response = await http.get(Uri.parse(uri));
 
       if (response.statusCode == 200) {
+        final List<dynamic> data = jsonDecode(response.body);
         setState(() {
-          stories = jsonDecode(response.body);
+          stories = data;
+          filteredStories = data;
         });
       }
     } catch (e) {
       debugPrint("Error fetching stories: $e");
     }
+  }
+
+  void filterStories(String query) {
+    setState(() {
+      if (query.isEmpty) {
+        filteredStories = stories;
+      } else {
+        filteredStories = stories.where((story) {
+          final title = (story["title"] ?? "").toLowerCase();
+          return title.contains(query.toLowerCase());
+        }).toList();
+      }
+    });
   }
 
   Future<void> deleteStory(String id) async {
@@ -70,6 +86,9 @@ class _MyAppState extends State<MyApp> {
   void initState() {
     super.initState();
     getStories();
+    _searchController.addListener(() {
+      filterStories(_searchController.text);
+    });
   }
 
   @override
@@ -86,10 +105,23 @@ class _MyAppState extends State<MyApp> {
           onRefresh: () =>
               getStories(query: _searchController.text),
         ),
+        const SliverToBoxAdapter(
+          child: Padding(
+            padding: EdgeInsets.fromLTRB(16.0, 16.0, 16.0, 8.0),
+            child: Text(
+              "Library",
+              style: TextStyle(
+                fontSize: 28,
+                fontWeight: FontWeight.bold,
+                color: Color(0xFF2C1D11),
+              ),
+            ),
+          ),
+        ),
 
         SliverPadding(
           padding: const EdgeInsets.all(16.0),
-          sliver: stories.isEmpty
+          sliver: filteredStories.isEmpty
               ? const SliverFillRemaining(
             child: Center(
               child: Text(
@@ -111,14 +143,14 @@ class _MyAppState extends State<MyApp> {
             ),
             delegate: SliverChildBuilderDelegate(
                   (context, index) {
-                final story = stories[index];
+                final story = filteredStories[index];
 
                 return LibraryBookCard(
                   story: story,
                   server: server,
                 );
               },
-              childCount: stories.length,
+              childCount: filteredStories.length,
             ),
           ),
         ),
@@ -132,13 +164,26 @@ class _MyAppState extends State<MyApp> {
           onRefresh: () =>
               getStories(query: _searchController.text),
         ),
+        const SliverToBoxAdapter(
+          child: Padding(
+            padding: EdgeInsets.fromLTRB(16.0, 16.0, 16.0, 8.0),
+            child: Text(
+              "My Stories",
+              style: TextStyle(
+                fontSize: 28,
+                fontWeight: FontWeight.bold,
+                color: Color(0xFF2C1D11),
+              ),
+            ),
+          ),
+        ),
 
         SliverPadding(
           padding: const EdgeInsets.symmetric(
             horizontal: 16.0,
             vertical: 10.0,
           ),
-          sliver: stories.isEmpty
+          sliver: filteredStories.isEmpty
               ? const SliverFillRemaining(
             child: Center(
               child: Text(
@@ -153,7 +198,7 @@ class _MyAppState extends State<MyApp> {
               : SliverList(
             delegate: SliverChildBuilderDelegate(
                   (context, index) {
-                final story = stories[index];
+                final story = filteredStories[index];
 
                 return Padding(
                   padding:
@@ -170,7 +215,7 @@ class _MyAppState extends State<MyApp> {
                   ),
                 );
               },
-              childCount: stories.length,
+              childCount: filteredStories.length,
             ),
           ),
         ),
@@ -287,7 +332,7 @@ class _MyAppState extends State<MyApp> {
               controller: _searchController,
               expandWhenActive: isexPanded,
               onChanged: (query) {
-                getStories(query: query);
+                filterStories(query);
               },
               onSearchToggle: (active) {
                 setState(() {
@@ -296,7 +341,7 @@ class _MyAppState extends State<MyApp> {
 
                   if (!active) {
                     _searchController.clear();
-                    getStories();
+                    filteredStories = stories;
                   }
                 });
               },
@@ -469,15 +514,25 @@ class StoryReaderScreen extends StatelessWidget {
 
     final String content = story["content"] ?? "";
 
-    final String? coverImage = story["cover_image"];
-
     return CupertinoPageScaffold(
       backgroundColor: const Color(0xFFE8DFC9),
-      navigationBar: const CupertinoNavigationBar(
-        backgroundColor: Color(0xFF7A5230),
-        middle: Text(
+      navigationBar: CupertinoNavigationBar(
+        backgroundColor: const Color(0xFF7A5230),
+        middle: const Text(
           "Read Story",
-          style: TextStyle(color: Color(0xFFFFFDD0)),
+          style: TextStyle(
+            color: Color(0xFF5A3D28),
+            fontWeight: FontWeight.bold,
+          ),
+        ),
+        leading: CupertinoButton(
+          padding: EdgeInsets.zero,
+          onPressed: () => Navigator.pop(context),
+          child: const Icon(
+            CupertinoIcons.chevron_left,
+            size: 26,
+            color: Color(0xFF5A3D28),
+          ),
         ),
       ),
 
@@ -486,33 +541,11 @@ class StoryReaderScreen extends StatelessWidget {
           padding: const EdgeInsets.all(16.0),
 
           child: Column(
-            crossAxisAlignment:
-            CrossAxisAlignment.start,
-
+            crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              if (coverImage != null &&
-                  coverImage.isNotEmpty) ...[
-                ClipRRect(
-                  borderRadius:
-                  BorderRadius.circular(12),
-
-                  child: Image.network(
-                    "${server}uploads/$coverImage",
-
-                    width: double.infinity,
-
-                    height: 220,
-
-                    fit: BoxFit.cover,
-                  ),
-                ),
-
-                const SizedBox(height: 16),
-              ],
-
               Text(
                 title,
-
+                textAlign: TextAlign.center,
                 style: const TextStyle(
                   fontSize: 26,
                   fontWeight: FontWeight.bold,
@@ -520,11 +553,10 @@ class StoryReaderScreen extends StatelessWidget {
                 ),
               ),
 
-              const SizedBox(height: 16),
+              const SizedBox(height: 24),
 
               Text(
                 content,
-
                 style: const TextStyle(
                   fontSize: 16,
                   height: 1.6,
@@ -660,106 +692,82 @@ class _StoryTileItemState
             ),
           ),
 
-          if (_showDelete) ...[
-            const SizedBox(width: 12),
+          // Animated delete button with ONLY icon (no text)
+          AnimatedContainer(
+            duration: const Duration(milliseconds: 250),
+            curve: Curves.easeInOut,
+            width: _showDelete ? 50 : 0,
+            child: AnimatedOpacity(
+              duration: const Duration(milliseconds: 200),
+              opacity: _showDelete ? 1.0 : 0.0,
+              child: _showDelete
+                  ? Padding(
+                padding: const EdgeInsets.only(left: 10.0),
+                child: GestureDetector(
+                  onTap: () async {
+                    final confirm =
+                    await showCupertinoDialog<bool>(
+                      context: context,
 
-            GestureDetector(
-              onTap: () async {
-                final confirm =
-                await showCupertinoDialog<bool>(
-                  context: context,
+                      builder: (ctx) =>
+                          CupertinoAlertDialog(
+                            title:
+                            const Text("Delete Story"),
 
-                  builder: (ctx) =>
-                      CupertinoAlertDialog(
-                        title:
-                        const Text("Delete Story"),
+                            content: const Text(
+                              "Are you sure you want to delete this story?",
+                            ),
 
-                        content: const Text(
-                          "Are you sure you want to delete this story?",
-                        ),
+                            actions: [
+                              CupertinoDialogAction(
+                                child:
+                                const Text("Cancel"),
 
-                        actions: [
-                          CupertinoDialogAction(
-                            child:
-                            const Text("Cancel"),
+                                onPressed: () =>
+                                    Navigator.pop(
+                                      ctx,
+                                      false,
+                                    ),
+                              ),
 
-                            onPressed: () =>
-                                Navigator.pop(
-                                  ctx,
-                                  false,
-                                ),
+                              CupertinoDialogAction(
+                                isDestructiveAction: true,
+
+                                child:
+                                const Text("Delete"),
+
+                                onPressed: () =>
+                                    Navigator.pop(
+                                      ctx,
+                                      true,
+                                    ),
+                              ),
+                            ],
                           ),
+                    );
 
-                          CupertinoDialogAction(
-                            isDestructiveAction: true,
-
-                            child:
-                            const Text("Delete"),
-
-                            onPressed: () =>
-                                Navigator.pop(
-                                  ctx,
-                                  true,
-                                ),
-                          ),
-                        ],
-                      ),
-                );
-
-                if (confirm == true) {
-                  widget.onDelete();
-                }
-              },
-
-              child: Container(
-                alignment: Alignment.center,
-
-                padding:
-                const EdgeInsets.symmetric(
-                  horizontal: 4,
-                ),
-
-                child: Column(
-                  mainAxisAlignment:
-                  MainAxisAlignment.center,
-
-                  children: [
-                    Container(
-                      width: 40,
-                      height: 40,
-
-                      decoration:
-                      const BoxDecoration(
-                        color:
-                        CupertinoColors.systemRed,
-                        shape: BoxShape.circle,
-                      ),
-
-                      child: const Icon(
-                        CupertinoIcons.delete_solid,
-                        color:
-                        CupertinoColors.white,
-                        size: 20,
-                      ),
+                    if (confirm == true) {
+                      widget.onDelete();
+                    }
+                  },
+                  child: Container(
+                    width: 44,
+                    height: 44,
+                    decoration: const BoxDecoration(
+                      color: CupertinoColors.systemRed,
+                      shape: BoxShape.circle,
                     ),
-
-                    const SizedBox(height: 2),
-
-                    const Text(
-                      "Delete",
-
-                      style: TextStyle(
-                        color:
-                        CupertinoColors.systemRed,
-                        fontSize: 11,
-                        fontWeight: FontWeight.w600,
-                      ),
+                    child: const Icon(
+                      CupertinoIcons.delete_solid,
+                      color: CupertinoColors.white,
+                      size: 22,
                     ),
-                  ],
+                  ),
                 ),
-              ),
+              )
+                  : const SizedBox.shrink(),
             ),
-          ],
+          ),
         ],
       ),
     );
@@ -872,8 +880,6 @@ class _StoryEditorScreenState
       final uri =
           "${widget.server}${isEdit ? 'updateStory.php' : 'addStory.php'}";
 
-      debugPrint("SINUSUBUKANG KUMONEKTA SA: $uri");
-
       var request =
       http.MultipartRequest(
         'POST',
@@ -905,22 +911,15 @@ class _StoryEditorScreenState
 
       var response = await http.Response.fromStream(streamedResponse);
 
-      debugPrint("SERVER STATUS CODE: ${response.statusCode}");
-      debugPrint("SERVER RESPONSE BODY: ${response.body}");
-
       if (response.statusCode == 200 &&
           mounted) {
         Navigator.pop(
           context,
           true,
         );
-      } else {
-        debugPrint("Hindi 200 ang status code!");
       }
     } catch (e) {
-      debugPrint(
-        "MAY ERROR SA CATCH: $e",
-      );
+      debugPrint("Error saving story: $e");
     }
   }
 
@@ -935,7 +934,7 @@ class _StoryEditorScreenState
               ? "Add New Story"
               : "Edit Story",
           style: const TextStyle(
-            color: Color(0xFF5A3D28), // Coffee color na para visible at kita
+            color: Color(0xFF5A3D28),
             fontWeight: FontWeight.bold,
           ),
         ),
@@ -966,7 +965,7 @@ class _StoryEditorScreenState
               fontSize: 16,
               fontWeight:
               FontWeight.bold,
-              color: Color(0xFF5A3D28), // Coffee color na rin ang Save button
+              color: Color(0xFF5A3D28),
             ),
           ),
         ),
