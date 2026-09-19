@@ -1,6 +1,8 @@
+import 'dart:convert';
 import 'package:flutter/cupertino.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:liquid_glass_widgets/liquid_glass_widgets.dart';
+import 'package:http/http.dart' as http;
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -17,10 +19,91 @@ class MyApp extends StatefulWidget {
 
 class _MyAppState extends State<MyApp> {
   int selectedIndex = 0;
+  String server = "http://192.168.100.202/booknest/";
+  List<dynamic> stories = [];
 
-  List<Widget> pages = const [
-    Center(child: Text("Library Page")),
-    Center(child: Text("Start Writing...")),
+  Future<void> getStories() async {
+    try {
+      final uri = "${server}getStories.php";
+      final response = await http.get(Uri.parse(uri));
+      if (response.statusCode == 200) {
+        setState(() {
+          stories = jsonDecode(response.body);
+        });
+      }
+    } catch (_) {}
+  }
+
+  @override
+  void initState() {
+    super.initState();
+    getStories();
+  }
+
+  List<Widget> get pages => [
+    const Center(child: Text("Library Page")),
+    Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 10.0),
+      child: stories.isEmpty
+          ? const Center(child: Text("Start Writing..."))
+          : ListView.builder(
+        itemCount: stories.length,
+        itemBuilder: (context, index) {
+          return Padding(
+            padding: const EdgeInsets.only(bottom: 12.0),
+            child: GestureDetector(
+              onTap: () async {
+                // Babalik sa Editor Format para sa ginawang Story
+                final result = await Navigator.push(
+                  context,
+                  CupertinoPageRoute(
+                    builder: (context) => StoryEditorScreen(
+                      server: server,
+                      storyId: stories[index]["id"].toString(),
+                      initialTitle: stories[index]["title"] ?? "",
+                      initialContent: stories[index]["content"] ?? "",
+                    ),
+                  ),
+                );
+                if (result == true) {
+                  getStories();
+                }
+              },
+              child: Container(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 20,
+                  vertical: 18,
+                ),
+                decoration: BoxDecoration(
+                  color: CupertinoColors.darkBackgroundGray,
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Expanded(
+                      child: Text(
+                        stories[index]["title"] ?? "",
+                        style: const TextStyle(
+                          fontSize: 20,
+                          fontWeight: FontWeight.bold,
+                          color: CupertinoColors.white,
+                        ),
+                      ),
+                    ),
+                    const Icon(
+                      CupertinoIcons.chevron_right,
+                      color: CupertinoColors.systemGrey,
+                      size: 20,
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          );
+        },
+      ),
+    ),
   ];
 
   @override
@@ -75,14 +158,19 @@ class _MyAppState extends State<MyApp> {
                   builder: (buttonContext) {
                     return CupertinoButton(
                       padding: EdgeInsets.zero,
-                      minSize: 0,
-                      onPressed: () {
-                        Navigator.push(
+                      minimumSize: Size.zero,
+                      onPressed: () async {
+                        final result = await Navigator.push(
                           buttonContext,
                           CupertinoPageRoute(
-                            builder: (context) => const AddBookScreen(),
+                            builder: (context) => StoryEditorScreen(
+                              server: server,
+                            ),
                           ),
                         );
+                        if (result == true) {
+                          getStories();
+                        }
                       },
                       child: Container(
                         width: 46,
@@ -108,16 +196,35 @@ class _MyAppState extends State<MyApp> {
   }
 }
 
-class AddBookScreen extends StatefulWidget {
-  const AddBookScreen({super.key});
+// Mismong Editor Page para sa Add, View, at Edit ng Story
+class StoryEditorScreen extends StatefulWidget {
+  final String server;
+  final String? storyId;
+  final String? initialTitle;
+  final String? initialContent;
+
+  const StoryEditorScreen({
+    super.key,
+    required this.server,
+    this.storyId,
+    this.initialTitle,
+    this.initialContent,
+  });
 
   @override
-  State<AddBookScreen> createState() => _AddBookScreenState();
+  State<StoryEditorScreen> createState() => _StoryEditorScreenState();
 }
 
-class _AddBookScreenState extends State<AddBookScreen> {
-  final TextEditingController _titleController = TextEditingController();
-  final TextEditingController _contentController = TextEditingController();
+class _StoryEditorScreenState extends State<StoryEditorScreen> {
+  late TextEditingController _titleController;
+  late TextEditingController _contentController;
+
+  @override
+  void initState() {
+    super.initState();
+    _titleController = TextEditingController(text: widget.initialTitle ?? "");
+    _contentController = TextEditingController(text: widget.initialContent ?? "");
+  }
 
   @override
   void dispose() {
@@ -126,21 +233,37 @@ class _AddBookScreenState extends State<AddBookScreen> {
     super.dispose();
   }
 
-  void _saveStory() {
-    print("Title: ${_titleController.text}");
-    print("Content: ${_contentController.text}");
-    Navigator.pop(context);
+  Future<void> _saveStory() async {
+    if (_titleController.text.trim().isEmpty) return;
+
+    try {
+      final uri = "${widget.server}addStory.php";
+      await http.post(
+        Uri.parse(uri),
+        body: {
+          "title": _titleController.text,
+          "content": _contentController.text,
+        },
+      );
+      if (mounted) {
+        Navigator.pop(context, true);
+      }
+    } catch (_) {}
   }
 
   @override
   Widget build(BuildContext context) {
     return CupertinoPageScaffold(
       navigationBar: CupertinoNavigationBar(
-        middle: const Text("Add New Story"),
+        middle: Text(widget.storyId == null ? "Add New Story" : "Story"),
         leading: CupertinoButton(
           padding: EdgeInsets.zero,
-          child: const Text("Cancel"),
           onPressed: () => Navigator.pop(context),
+          child: const Icon(
+            CupertinoIcons.chevron_left, // Symbol na < pabalik
+            size: 26,
+            color: CupertinoColors.activeBlue,
+          ),
         ),
         trailing: CupertinoButton(
           padding: EdgeInsets.zero,
