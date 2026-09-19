@@ -59,11 +59,43 @@ class _MyAppState extends State<MyApp> {
   }
 
   List<Widget> get pages => [
-    const Center(
-      child: Text(
-        "Library Page",
-        style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
-      ),
+    CustomScrollView(
+      physics: const AlwaysScrollableScrollPhysics(),
+      slivers: [
+        CupertinoSliverRefreshControl(
+          onRefresh: getStories,
+        ),
+        SliverPadding(
+          padding: const EdgeInsets.all(16.0),
+          sliver: stories.isEmpty
+              ? const SliverFillRemaining(
+            child: Center(
+              child: Text(
+                "No books in library yet",
+                style: TextStyle(color: CupertinoColors.systemGrey),
+              ),
+            ),
+          )
+              : SliverGrid(
+            gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+              crossAxisCount: 2,
+              childAspectRatio: 0.48,
+              crossAxisSpacing: 14,
+              mainAxisSpacing: 18,
+            ),
+            delegate: SliverChildBuilderDelegate(
+                  (context, index) {
+                final story = stories[index];
+                return LibraryBookCard(
+                  story: story,
+                  server: server,
+                );
+              },
+              childCount: stories.length,
+            ),
+          ),
+        ),
+      ],
     ),
     CustomScrollView(
       physics: const AlwaysScrollableScrollPhysics(),
@@ -147,7 +179,6 @@ class _MyAppState extends State<MyApp> {
               ),
               body: SafeArea(child: pages[selectedIndex]),
             ),
-
             if (selectedIndex == 1)
               Positioned(
                 bottom: 130,
@@ -188,6 +219,186 @@ class _MyAppState extends State<MyApp> {
                 ),
               ),
           ],
+        ),
+      ),
+    );
+  }
+}
+
+class LibraryBookCard extends StatelessWidget {
+  final dynamic story;
+  final String server;
+
+  const LibraryBookCard({
+    super.key,
+    required this.story,
+    required this.server,
+  });
+
+  String _formatDate(dynamic dateValue) {
+    if (dateValue != null && dateValue.toString().trim().isNotEmpty) {
+      return dateValue.toString();
+    }
+    final now = DateTime.now();
+    return "${now.year}-${now.month.toString().padLeft(2, '0')}-${now.day.toString().padLeft(2, '0')} ${now.hour.toString().padLeft(2, '0')}:${now.minute.toString().padLeft(2, '0')}";
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final String title = story["title"] ?? "Untitled";
+    final String? coverImage = story["cover_image"];
+    final String dateDisplay = _formatDate(story["created_at"] ?? story["date"] ?? story["updated_at"]);
+
+    return GestureDetector(
+      onTap: () {
+        Navigator.push(
+          context,
+          CupertinoPageRoute(
+            builder: (context) => StoryReaderScreen(
+              story: story,
+              server: server,
+            ),
+          ),
+        );
+      },
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Expanded(
+            child: Container(
+              width: double.infinity,
+              decoration: BoxDecoration(
+                color: CupertinoColors.darkBackgroundGray,
+                borderRadius: BorderRadius.circular(12),
+                boxShadow: [
+                  BoxShadow(
+                    color: CupertinoColors.black.withValues(alpha: 0.5),
+                    blurRadius: 6,
+                    offset: const Offset(0, 3),
+                  ),
+                ],
+                image: (coverImage != null && coverImage.isNotEmpty)
+                    ? DecorationImage(
+                  image: NetworkImage("${server}uploads/$coverImage"),
+                  fit: BoxFit.cover,
+                )
+                    : null,
+              ),
+              child: (coverImage == null || coverImage.isEmpty)
+                  ? Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: const [
+                  Icon(
+                    CupertinoIcons.book_solid,
+                    size: 38,
+                    color: CupertinoColors.systemGrey,
+                  ),
+                  SizedBox(height: 6),
+                  Text(
+                    "No Cover",
+                    style: TextStyle(
+                      color: CupertinoColors.systemGrey,
+                      fontSize: 12,
+                    ),
+                  ),
+                ],
+              )
+                  : null,
+            ),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            title,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: const TextStyle(
+              fontSize: 15,
+              fontWeight: FontWeight.bold,
+              color: CupertinoColors.white,
+            ),
+          ),
+          const SizedBox(height: 3),
+          Text(
+            "Date: $dateDisplay",
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: const TextStyle(
+              fontSize: 11,
+              color: CupertinoColors.systemGrey,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class StoryReaderScreen extends StatelessWidget {
+  final dynamic story;
+  final String server;
+
+  const StoryReaderScreen({
+    super.key,
+    required this.story,
+    required this.server,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final String title = story["title"] ?? "Untitled";
+    final String content = story["content"] ?? "";
+    final String? coverImage = story["cover_image"];
+
+    return CupertinoPageScaffold(
+      navigationBar: CupertinoNavigationBar(
+        middle: Text(title),
+        leading: CupertinoButton(
+          padding: EdgeInsets.zero,
+          onPressed: () => Navigator.pop(context),
+          child: const Icon(
+            CupertinoIcons.chevron_left,
+            size: 26,
+            color: CupertinoColors.activeBlue,
+          ),
+        ),
+      ),
+      child: SafeArea(
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.all(16.0),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              if (coverImage != null && coverImage.isNotEmpty) ...[
+                ClipRRect(
+                  borderRadius: BorderRadius.circular(12),
+                  child: Image.network(
+                    "${server}uploads/$coverImage",
+                    width: double.infinity,
+                    height: 220,
+                    fit: BoxFit.cover,
+                  ),
+                ),
+                const SizedBox(height: 16),
+              ],
+              Text(
+                title,
+                style: const TextStyle(
+                  fontSize: 26,
+                  fontWeight: FontWeight.bold,
+                  color: CupertinoColors.white,
+                ),
+              ),
+              const SizedBox(height: 16),
+              Text(
+                content,
+                style: const TextStyle(
+                  fontSize: 16,
+                  height: 1.6,
+                  color: CupertinoColors.white,
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );
