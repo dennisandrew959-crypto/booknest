@@ -34,6 +34,17 @@ class _MyAppState extends State<MyApp> {
     } catch (_) {}
   }
 
+  Future<void> deleteStory(String id) async {
+    try {
+      final uri = "${server}deleteStory.php";
+      await http.post(
+        Uri.parse(uri),
+        body: {"id": id},
+      );
+      getStories();
+    } catch (_) {}
+  }
+
   @override
   void initState() {
     super.initState();
@@ -49,56 +60,14 @@ class _MyAppState extends State<MyApp> {
           : ListView.builder(
         itemCount: stories.length,
         itemBuilder: (context, index) {
+          final story = stories[index];
           return Padding(
             padding: const EdgeInsets.only(bottom: 12.0),
-            child: GestureDetector(
-              onTap: () async {
-                // Babalik sa Editor Format para sa ginawang Story
-                final result = await Navigator.push(
-                  context,
-                  CupertinoPageRoute(
-                    builder: (context) => StoryEditorScreen(
-                      server: server,
-                      storyId: stories[index]["id"].toString(),
-                      initialTitle: stories[index]["title"] ?? "",
-                      initialContent: stories[index]["content"] ?? "",
-                    ),
-                  ),
-                );
-                if (result == true) {
-                  getStories();
-                }
-              },
-              child: Container(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 20,
-                  vertical: 18,
-                ),
-                decoration: BoxDecoration(
-                  color: CupertinoColors.darkBackgroundGray,
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Expanded(
-                      child: Text(
-                        stories[index]["title"] ?? "",
-                        style: const TextStyle(
-                          fontSize: 20,
-                          fontWeight: FontWeight.bold,
-                          color: CupertinoColors.white,
-                        ),
-                      ),
-                    ),
-                    const Icon(
-                      CupertinoIcons.chevron_right,
-                      color: CupertinoColors.systemGrey,
-                      size: 20,
-                    ),
-                  ],
-                ),
-              ),
+            child: StoryTileItem(
+              story: story,
+              server: server,
+              onDelete: () => deleteStory(story["id"].toString()),
+              onRefresh: getStories,
             ),
           );
         },
@@ -196,7 +165,160 @@ class _MyAppState extends State<MyApp> {
   }
 }
 
-// Mismong Editor Page para sa Add, View, at Edit ng Story
+class StoryTileItem extends StatefulWidget {
+  final dynamic story;
+  final String server;
+  final VoidCallback onDelete;
+  final VoidCallback onRefresh;
+
+  const StoryTileItem({
+    super.key,
+    required this.story,
+    required this.server,
+    required this.onDelete,
+    required this.onRefresh,
+  });
+
+  @override
+  State<StoryTileItem> createState() => _StoryTileItemState();
+}
+
+class _StoryTileItemState extends State<StoryTileItem> {
+  bool _showDelete = false;
+
+  @override
+  Widget build(BuildContext context) {
+    return IntrinsicHeight(
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.center,
+        children: [
+          Expanded(
+            child: GestureDetector(
+              onLongPress: () {
+                setState(() {
+                  _showDelete = !_showDelete;
+                });
+              },
+              onTap: () async {
+                if (_showDelete) {
+                  setState(() {
+                    _showDelete = false;
+                  });
+                  return;
+                }
+                final result = await Navigator.push(
+                  context,
+                  CupertinoPageRoute(
+                    builder: (context) => StoryEditorScreen(
+                      server: widget.server,
+                      storyId: widget.story["id"].toString(),
+                      initialTitle: widget.story["title"] ?? "",
+                      initialContent: widget.story["content"] ?? "",
+                    ),
+                  ),
+                );
+                if (result == true) {
+                  widget.onRefresh();
+                }
+              },
+              child: Container(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 20,
+                  vertical: 18,
+                ),
+                decoration: BoxDecoration(
+                  color: CupertinoColors.darkBackgroundGray,
+                  borderRadius: BorderRadius.circular(16),
+                ),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Expanded(
+                      child: Text(
+                        widget.story["title"] ?? "",
+                        style: const TextStyle(
+                          fontSize: 20,
+                          fontWeight: FontWeight.bold,
+                          color: CupertinoColors.white,
+                        ),
+                      ),
+                    ),
+                    const Icon(
+                      CupertinoIcons.chevron_right,
+                      color: CupertinoColors.systemGrey,
+                      size: 20,
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+
+          if (_showDelete) ...[
+            const SizedBox(width: 12),
+            GestureDetector(
+              onTap: () async {
+                final confirm = await showCupertinoDialog<bool>(
+                  context: context,
+                  builder: (ctx) => CupertinoAlertDialog(
+                    title: const Text("Delete Story"),
+                    content: const Text("Are you sure you want to delete this story?"),
+                    actions: [
+                      CupertinoDialogAction(
+                        child: const Text("Cancel"),
+                        onPressed: () => Navigator.pop(ctx, false),
+                      ),
+                      CupertinoDialogAction(
+                        isDestructiveAction: true,
+                        child: const Text("Delete"),
+                        onPressed: () => Navigator.pop(ctx, true),
+                      ),
+                    ],
+                  ),
+                );
+                if (confirm == true) {
+                  widget.onDelete();
+                }
+              },
+              child: Container(
+                alignment: Alignment.center,
+                padding: const EdgeInsets.symmetric(horizontal: 4),
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Container(
+                      width: 40,
+                      height: 40,
+                      decoration: const BoxDecoration(
+                        color: CupertinoColors.systemRed,
+                        shape: BoxShape.circle,
+                      ),
+                      child: const Icon(
+                        CupertinoIcons.delete_solid,
+                        color: CupertinoColors.white,
+                        size: 20,
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    const Text(
+                      "Delete",
+                      style: TextStyle(
+                        color: CupertinoColors.systemRed,
+                        fontSize: 11,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+}
+
 class StoryEditorScreen extends StatefulWidget {
   final String server;
   final String? storyId;
@@ -234,17 +356,41 @@ class _StoryEditorScreenState extends State<StoryEditorScreen> {
   }
 
   Future<void> _saveStory() async {
-    if (_titleController.text.trim().isEmpty) return;
+    if (_titleController.text.trim().isEmpty) {
+      showCupertinoDialog(
+        context: context,
+        builder: (ctx) => CupertinoAlertDialog(
+          title: const Text("Missing Title"),
+          content: const Text("Please enter a title for your story."),
+          actions: [
+            CupertinoDialogAction(
+              child: const Text("OK"),
+              onPressed: () => Navigator.pop(ctx),
+            ),
+          ],
+        ),
+      );
+      return;
+    }
 
     try {
-      final uri = "${widget.server}addStory.php";
+      final isEdit = widget.storyId != null;
+      final uri = "${widget.server}${isEdit ? 'updateStory.php' : 'addStory.php'}";
+
+      Map<String, String> bodyData = {
+        "title": _titleController.text,
+        "content": _contentController.text,
+      };
+
+      if (isEdit) {
+        bodyData["id"] = widget.storyId!;
+      }
+
       await http.post(
         Uri.parse(uri),
-        body: {
-          "title": _titleController.text,
-          "content": _contentController.text,
-        },
+        body: bodyData,
       );
+
       if (mounted) {
         Navigator.pop(context, true);
       }
@@ -255,12 +401,12 @@ class _StoryEditorScreenState extends State<StoryEditorScreen> {
   Widget build(BuildContext context) {
     return CupertinoPageScaffold(
       navigationBar: CupertinoNavigationBar(
-        middle: Text(widget.storyId == null ? "Add New Story" : "Story"),
+        middle: Text(widget.storyId == null ? "Add New Story" : "Edit Story"),
         leading: CupertinoButton(
           padding: EdgeInsets.zero,
           onPressed: () => Navigator.pop(context),
           child: const Icon(
-            CupertinoIcons.chevron_left, // Symbol na < pabalik
+            CupertinoIcons.chevron_left,
             size: 26,
             color: CupertinoColors.activeBlue,
           ),
