@@ -1,6 +1,8 @@
 import 'dart:convert';
+import 'dart:io';
 import 'package:flutter/cupertino.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
+import 'package:image_picker/image_picker.dart';
 import 'package:liquid_glass_widgets/liquid_glass_widgets.dart';
 import 'package:http/http.dart' as http;
 
@@ -26,12 +28,15 @@ class _MyAppState extends State<MyApp> {
     try {
       final uri = "${server}getStories.php";
       final response = await http.get(Uri.parse(uri));
+
       if (response.statusCode == 200) {
         setState(() {
           stories = jsonDecode(response.body);
         });
       }
-    } catch (_) {}
+    } catch (e) {
+      debugPrint("Error fetching stories: $e");
+    }
   }
 
   Future<void> deleteStory(String id) async {
@@ -42,7 +47,9 @@ class _MyAppState extends State<MyApp> {
         body: {"id": id},
       );
       getStories();
-    } catch (_) {}
+    } catch (e) {
+      debugPrint("Error deleting story: $e");
+    }
   }
 
   @override
@@ -52,26 +59,48 @@ class _MyAppState extends State<MyApp> {
   }
 
   List<Widget> get pages => [
-    const Center(child: Text("Library Page")),
-    Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 10.0),
-      child: stories.isEmpty
-          ? const Center(child: Text("Start Writing..."))
-          : ListView.builder(
-        itemCount: stories.length,
-        itemBuilder: (context, index) {
-          final story = stories[index];
-          return Padding(
-            padding: const EdgeInsets.only(bottom: 12.0),
-            child: StoryTileItem(
-              story: story,
-              server: server,
-              onDelete: () => deleteStory(story["id"].toString()),
-              onRefresh: getStories,
-            ),
-          );
-        },
+    const Center(
+      child: Text(
+        "Library Page",
+        style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
       ),
+    ),
+    CustomScrollView(
+      physics: const AlwaysScrollableScrollPhysics(),
+      slivers: [
+        CupertinoSliverRefreshControl(
+          onRefresh: getStories,
+        ),
+        SliverPadding(
+          padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 10.0),
+          sliver: stories.isEmpty
+              ? const SliverFillRemaining(
+            child: Center(
+              child: Text(
+                "Start Writing...",
+                style: TextStyle(color: CupertinoColors.systemGrey),
+              ),
+            ),
+          )
+              : SliverList(
+            delegate: SliverChildBuilderDelegate(
+                  (context, index) {
+                final story = stories[index];
+                return Padding(
+                  padding: const EdgeInsets.only(bottom: 12.0),
+                  child: StoryTileItem(
+                    story: story,
+                    server: server,
+                    onDelete: () => deleteStory(story["id"].toString()),
+                    onRefresh: getStories,
+                  ),
+                );
+              },
+              childCount: stories.length,
+            ),
+          ),
+        ),
+      ],
     ),
   ];
 
@@ -214,6 +243,7 @@ class _StoryTileItemState extends State<StoryTileItem> {
                       storyId: widget.story["id"].toString(),
                       initialTitle: widget.story["title"] ?? "",
                       initialContent: widget.story["content"] ?? "",
+                      initialImage: widget.story["cover_image"],
                     ),
                   ),
                 );
@@ -253,7 +283,6 @@ class _StoryTileItemState extends State<StoryTileItem> {
               ),
             ),
           ),
-
           if (_showDelete) ...[
             const SizedBox(width: 12),
             GestureDetector(
@@ -324,6 +353,7 @@ class StoryEditorScreen extends StatefulWidget {
   final String? storyId;
   final String? initialTitle;
   final String? initialContent;
+  final String? initialImage;
 
   const StoryEditorScreen({
     super.key,
@@ -331,6 +361,7 @@ class StoryEditorScreen extends StatefulWidget {
     this.storyId,
     this.initialTitle,
     this.initialContent,
+    this.initialImage,
   });
 
   @override
@@ -340,6 +371,8 @@ class StoryEditorScreen extends StatefulWidget {
 class _StoryEditorScreenState extends State<StoryEditorScreen> {
   late TextEditingController _titleController;
   late TextEditingController _contentController;
+  File? _selectedImage;
+  final ImagePicker _picker = ImagePicker();
 
   @override
   void initState() {
@@ -353,6 +386,15 @@ class _StoryEditorScreenState extends State<StoryEditorScreen> {
     _titleController.dispose();
     _contentController.dispose();
     super.dispose();
+  }
+
+  Future<void> _pickImage() async {
+    final XFile? pickedFile = await _picker.pickImage(source: ImageSource.gallery);
+    if (pickedFile != null) {
+      setState(() {
+        _selectedImage = File(pickedFile.path);
+      });
+    }
   }
 
   Future<void> _saveStory() async {
@@ -377,24 +419,28 @@ class _StoryEditorScreenState extends State<StoryEditorScreen> {
       final isEdit = widget.storyId != null;
       final uri = "${widget.server}${isEdit ? 'updateStory.php' : 'addStory.php'}";
 
-      Map<String, String> bodyData = {
-        "title": _titleController.text,
-        "content": _contentController.text,
-      };
+      var request = http.MultipartRequest('POST', Uri.parse(uri));
+      request.fields['title'] = _titleController.text;
+      request.fields['content'] = _contentController.text;
 
       if (isEdit) {
-        bodyData["id"] = widget.storyId!;
+        request.fields['id'] = widget.storyId!;
       }
 
-      await http.post(
-        Uri.parse(uri),
-        body: bodyData,
-      );
+      if (_selectedImage != null) {
+        request.files.add(
+          await http.MultipartFile.fromPath('image', _selectedImage!.path),
+        );
+      }
 
-      if (mounted) {
+      var streamedResponse = await request.send();
+
+      if (streamedResponse.statusCode == 200 && mounted) {
         Navigator.pop(context, true);
       }
-    } catch (_) {}
+    } catch (e) {
+      debugPrint("Error saving story: $e");
+    }
   }
 
   @override
@@ -437,6 +483,53 @@ class _StoryEditorScreenState extends State<StoryEditorScreen> {
                 decoration: BoxDecoration(
                   color: CupertinoColors.darkBackgroundGray,
                   borderRadius: BorderRadius.circular(10),
+                ),
+              ),
+              const SizedBox(height: 14),
+
+              GestureDetector(
+                onTap: _pickImage,
+                child: Container(
+                  width: double.infinity,
+                  height: 130,
+                  decoration: BoxDecoration(
+                    color: CupertinoColors.darkBackgroundGray,
+                    borderRadius: BorderRadius.circular(10),
+                    image: _selectedImage != null
+                        ? DecorationImage(
+                      image: FileImage(_selectedImage!),
+                      fit: BoxFit.cover,
+                    )
+                        : (widget.initialImage != null && widget.initialImage!.isNotEmpty)
+                        ? DecorationImage(
+                      image: NetworkImage(
+                        "${widget.server}uploads/${widget.initialImage}",
+                      ),
+                      fit: BoxFit.cover,
+                    )
+                        : null,
+                  ),
+                  child: (_selectedImage == null &&
+                      (widget.initialImage == null || widget.initialImage!.isEmpty))
+                      ? const Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Icon(
+                        CupertinoIcons.photo,
+                        size: 32,
+                        color: CupertinoColors.systemGrey,
+                      ),
+                      SizedBox(height: 6),
+                      Text(
+                        "Add Cover Image (Optional)",
+                        style: TextStyle(
+                          color: CupertinoColors.systemGrey,
+                          fontSize: 13,
+                        ),
+                      ),
+                    ],
+                  )
+                      : null,
                 ),
               ),
               const SizedBox(height: 14),
