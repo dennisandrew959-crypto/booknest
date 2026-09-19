@@ -95,7 +95,8 @@ class _MyAppState extends State<MyApp> {
               child: Text(
                 "No books found",
                 style: TextStyle(
-                  color: CupertinoColors.systemGrey,
+                  color: Color(0xFF3B281A),
+                  fontWeight: FontWeight.w600,
                 ),
               ),
             ),
@@ -143,7 +144,8 @@ class _MyAppState extends State<MyApp> {
               child: Text(
                 "Start Writing...",
                 style: TextStyle(
-                  color: CupertinoColors.systemGrey,
+                  color: Color(0xFF3B281A),
+                  fontWeight: FontWeight.w600,
                 ),
               ),
             ),
@@ -180,125 +182,130 @@ class _MyAppState extends State<MyApp> {
   Widget build(BuildContext context) {
     return CupertinoApp(
       theme: const CupertinoThemeData(
-        brightness: Brightness.dark,
-        primaryColor: CupertinoColors.label,
+        brightness: Brightness.light,
+        primaryColor: Color(0xFF4B382A),
       ),
       debugShowCheckedModeBanner: false,
 
-      home: GlassScaffold(
-        bodyOverlays: [
-          if (selectedIndex == 1)
-            Positioned(
-              bottom: 115,
-              right: 28,
-              child: Builder(
-                builder: (buttonContext) {
-                  return SizedBox(
-                    width: 54,
-                    height: 54,
-                    child: GlassButton.custom(
-                      shape: const LiquidRoundedRectangle(
-                        borderRadius: 27,
-                      ),
-                      onTap: () async {
-                        final result = await Navigator.push(
-                          buttonContext,
-                          CupertinoPageRoute(
-                            builder: (context) =>
-                                StoryEditorScreen(
-                                  server: server,
-                                ),
-                          ),
-                        );
-
-                        if (result == true) {
-                          getStories(
-                            query: _searchController.text,
+      home: CupertinoPageScaffold(
+        backgroundColor: const Color(0xFFE8DFC9),
+        child: GlassScaffold(
+          bodyOverlays: [
+            if (selectedIndex == 1)
+              Positioned(
+                bottom: 115,
+                right: 28,
+                child: Builder(
+                  builder: (buttonContext) {
+                    return SizedBox(
+                      width: 54,
+                      height: 54,
+                      child: GlassButton.custom(
+                        shape: const LiquidRoundedRectangle(
+                          borderRadius: 27,
+                        ),
+                        onTap: () async {
+                          final result = await Navigator.push(
+                            buttonContext,
+                            CupertinoPageRoute(
+                              builder: (context) =>
+                                  StoryEditorScreen(
+                                    server: server,
+                                  ),
+                            ),
                           );
-                        }
-                      },
-                      child: Container(
-                        color: CupertinoColors.activeBlue
-                            .withValues(alpha: 0.6),
-                        child: const Center(
-                          child: Icon(
-                            CupertinoIcons.add,
-                            color: CupertinoColors.white,
-                            size: 28,
+
+                          if (result == true) {
+                            getStories(
+                              query: _searchController.text,
+                            );
+                          }
+                        },
+                        child: Container(
+                          color: const Color(0xFF6F4E37)
+                              .withValues(alpha: 0.9),
+                          child: const Center(
+                            child: Icon(
+                              CupertinoIcons.add,
+                              color: Color(0xFFFFFDD0),
+                              size: 28,
+                            ),
                           ),
                         ),
                       ),
-                    ),
-                  );
-                },
+                    );
+                  },
+                ),
               ),
-            ),
-        ],
-
-        bottomBar: GlassTabBar.searchable(
-          settings: const LiquidGlassSettings(
-            blur: 0.5,
-            chromaticAberration: 1,
-          ),
-
-          isSearchActive: isSearchactive,
-
-          tabs: const [
-            GlassTab(
-              icon: FaIcon(
-                FontAwesomeIcons.book,
-                size: 32,
-              ),
-              activeIcon: FaIcon(
-                FontAwesomeIcons.bookOpen,
-                size: 32,
-                color: CupertinoColors.systemBlue,
-              ),
-            ),
-
-            GlassTab(
-              icon: FaIcon(
-                FontAwesomeIcons.featherPointed,
-                size: 32,
-              ),
-              activeIcon: FaIcon(
-                FontAwesomeIcons.featherPointed,
-                size: 32,
-                color: CupertinoColors.systemBlue,
-              ),
-            ),
           ],
 
-          selectedIndex: selectedIndex,
+          bottomBar: GlassTabBar.searchable(
+            settings: const LiquidGlassSettings(
+              blur: 0.5,
+              chromaticAberration: 1,
+            ),
 
-          onTabSelected: (index) {
-            setState(() {
-              selectedIndex = index;
-            });
-          },
+            isSearchActive: isSearchactive,
 
-          searchConfig: GlassSearchBarConfig(
-            controller: _searchController,
-            expandWhenActive: isexPanded,
-            onChanged: (query) {
-              getStories(query: query);
-            },
-            onSearchToggle: (active) {
+            tabs: const [
+              GlassTab(
+                icon: FaIcon(
+                  FontAwesomeIcons.book,
+                  size: 32,
+                  color: Color(0xFF3B281A),
+                ),
+                activeIcon: FaIcon(
+                  FontAwesomeIcons.bookOpen,
+                  size: 32,
+                  color: Color(0xFF5A3D28),
+                ),
+              ),
+
+              GlassTab(
+                icon: FaIcon(
+                  FontAwesomeIcons.featherPointed,
+                  size: 32,
+                  color: Color(0xFF3B281A),
+                ),
+                activeIcon: FaIcon(
+                  FontAwesomeIcons.featherPointed,
+                  size: 32,
+                  color: Color(0xFF5A3D28),
+                ),
+              ),
+            ],
+
+            selectedIndex: selectedIndex,
+
+            onTabSelected: (index) {
               setState(() {
-                isSearchactive = active;
-                isexPanded = active;
-
-                if (!active) {
-                  _searchController.clear();
-                  getStories();
-                }
+                selectedIndex = index;
               });
             },
-          ),
-        ),
 
-        body: SafeArea(
-          child: pages[selectedIndex],
+            searchConfig: GlassSearchBarConfig(
+              controller: _searchController,
+              expandWhenActive: isexPanded,
+              onChanged: (query) {
+                getStories(query: query);
+              },
+              onSearchToggle: (active) {
+                setState(() {
+                  isSearchactive = active;
+                  isexPanded = active;
+
+                  if (!active) {
+                    _searchController.clear();
+                    getStories();
+                  }
+                });
+              },
+            ),
+          ),
+
+          body: SafeArea(
+            child: pages[selectedIndex],
+          ),
         ),
       ),
     );
@@ -363,14 +370,14 @@ class LibraryBookCard extends StatelessWidget {
               width: double.infinity,
 
               decoration: BoxDecoration(
-                color: CupertinoColors.darkBackgroundGray,
+                color: const Color(0xFF7A5230),
 
                 borderRadius: BorderRadius.circular(12),
 
                 boxShadow: [
                   BoxShadow(
                     color:
-                    CupertinoColors.black.withValues(alpha: 0.5),
+                    const Color(0xFF3B281A).withValues(alpha: 0.3),
                     blurRadius: 6,
                     offset: const Offset(0, 3),
                   ),
@@ -396,7 +403,7 @@ class LibraryBookCard extends StatelessWidget {
                   Icon(
                     CupertinoIcons.book_solid,
                     size: 38,
-                    color: CupertinoColors.systemGrey,
+                    color: Color(0xFFFFFDD0),
                   ),
 
                   SizedBox(height: 6),
@@ -404,8 +411,7 @@ class LibraryBookCard extends StatelessWidget {
                   Text(
                     "No Cover",
                     style: TextStyle(
-                      color:
-                      CupertinoColors.systemGrey,
+                      color: Color(0xFFFFFDD0),
                       fontSize: 12,
                     ),
                   ),
@@ -425,7 +431,7 @@ class LibraryBookCard extends StatelessWidget {
             style: const TextStyle(
               fontSize: 15,
               fontWeight: FontWeight.bold,
-              color: CupertinoColors.white,
+              color: Color(0xFF2C1D11),
             ),
           ),
 
@@ -438,7 +444,7 @@ class LibraryBookCard extends StatelessWidget {
 
             style: const TextStyle(
               fontSize: 11,
-              color: CupertinoColors.systemGrey,
+              color: Color(0xFF5A3D28),
             ),
           ),
         ],
@@ -466,19 +472,12 @@ class StoryReaderScreen extends StatelessWidget {
     final String? coverImage = story["cover_image"];
 
     return CupertinoPageScaffold(
-      navigationBar: CupertinoNavigationBar(
-        middle: Text(title),
-
-        leading: CupertinoButton(
-          padding: EdgeInsets.zero,
-
-          onPressed: () => Navigator.pop(context),
-
-          child: const Icon(
-            CupertinoIcons.chevron_left,
-            size: 26,
-            color: CupertinoColors.activeBlue,
-          ),
+      backgroundColor: const Color(0xFFE8DFC9),
+      navigationBar: const CupertinoNavigationBar(
+        backgroundColor: Color(0xFF7A5230),
+        middle: Text(
+          "Read Story",
+          style: TextStyle(color: Color(0xFFFFFDD0)),
         ),
       ),
 
@@ -517,7 +516,7 @@ class StoryReaderScreen extends StatelessWidget {
                 style: const TextStyle(
                   fontSize: 26,
                   fontWeight: FontWeight.bold,
-                  color: CupertinoColors.white,
+                  color: Color(0xFF2C1D11),
                 ),
               ),
 
@@ -529,7 +528,7 @@ class StoryReaderScreen extends StatelessWidget {
                 style: const TextStyle(
                   fontSize: 16,
                   height: 1.6,
-                  color: CupertinoColors.white,
+                  color: Color(0xFF3B281A),
                 ),
               ),
             ],
@@ -625,7 +624,7 @@ class _StoryTileItemState
 
                 decoration: BoxDecoration(
                   color:
-                  CupertinoColors.darkBackgroundGray,
+                  const Color(0xFF7A5230),
 
                   borderRadius:
                   BorderRadius.circular(16),
@@ -644,7 +643,7 @@ class _StoryTileItemState
                           fontSize: 20,
                           fontWeight: FontWeight.bold,
                           color:
-                          CupertinoColors.white,
+                          Color(0xFFFFFDD0),
                         ),
                       ),
                     ),
@@ -652,7 +651,7 @@ class _StoryTileItemState
                     const Icon(
                       CupertinoIcons.chevron_right,
                       color:
-                      CupertinoColors.systemGrey,
+                      Color(0xFFE8DFC9),
                       size: 20,
                     ),
                   ],
@@ -920,12 +919,14 @@ class _StoryEditorScreenState
   @override
   Widget build(BuildContext context) {
     return CupertinoPageScaffold(
-      navigationBar:
-      CupertinoNavigationBar(
+      backgroundColor: const Color(0xFFE8DFC9),
+      navigationBar: CupertinoNavigationBar(
+        backgroundColor: const Color(0xFF7A5230),
         middle: Text(
           widget.storyId == null
               ? "Add New Story"
               : "Edit Story",
+          style: const TextStyle(color: Color(0xFFFFFDD0)),
         ),
 
         leading: CupertinoButton(
@@ -938,7 +939,7 @@ class _StoryEditorScreenState
             CupertinoIcons.chevron_left,
             size: 26,
             color:
-            CupertinoColors.activeBlue,
+            Color(0xFFFFFDD0),
           ),
         ),
 
@@ -953,6 +954,7 @@ class _StoryEditorScreenState
             style: TextStyle(
               fontWeight:
               FontWeight.bold,
+              color: Color(0xFFFFFDD0),
             ),
           ),
         ),
@@ -975,6 +977,8 @@ class _StoryEditorScreenState
                 placeholder:
                 "Book Title",
 
+                placeholderStyle: const TextStyle(color: Color(0xFF8A6B47)),
+
                 padding:
                 const EdgeInsets.all(16),
 
@@ -983,13 +987,13 @@ class _StoryEditorScreenState
                   fontWeight:
                   FontWeight.bold,
                   color:
-                  CupertinoColors.white,
+                  Color(0xFF2C1D11),
                 ),
 
                 decoration:
                 BoxDecoration(
                   color:
-                  CupertinoColors.darkBackgroundGray,
+                  const Color(0xFFD6C8B0),
 
                   borderRadius:
                   BorderRadius.circular(10),
@@ -1007,7 +1011,7 @@ class _StoryEditorScreenState
 
                   decoration: BoxDecoration(
                     color:
-                    CupertinoColors.darkBackgroundGray,
+                    const Color(0xFFD6C8B0),
 
                     borderRadius:
                     BorderRadius.circular(10),
@@ -1053,8 +1057,7 @@ class _StoryEditorScreenState
                         CupertinoIcons.photo,
                         size: 32,
                         color:
-                        CupertinoColors
-                            .systemGrey,
+                        Color(0xFF8A6B47),
                       ),
 
                       SizedBox(
@@ -1067,8 +1070,7 @@ class _StoryEditorScreenState
                         style:
                         TextStyle(
                           color:
-                          CupertinoColors
-                              .systemGrey,
+                          Color(0xFF8A6B47),
                           fontSize: 13,
                         ),
                       ),
@@ -1089,12 +1091,15 @@ class _StoryEditorScreenState
                   placeholder:
                   "Write your story here...",
 
+                  placeholderStyle: const TextStyle(color: Color(0xFF8A6B47)),
+
                   padding:
                   const EdgeInsets.all(16),
 
                   style: const TextStyle(
                     fontSize: 16,
                     height: 1.4,
+                    color: Color(0xFF2C1D11),
                   ),
 
                   maxLines: null,
@@ -1109,7 +1114,7 @@ class _StoryEditorScreenState
                   decoration:
                   BoxDecoration(
                     color:
-                    CupertinoColors.darkBackgroundGray,
+                    const Color(0xFFD6C8B0),
 
                     borderRadius:
                     BorderRadius.circular(10),
